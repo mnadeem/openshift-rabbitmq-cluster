@@ -73,7 +73,8 @@ objects:
   data:
     rabbitmq.conf: |
         loopback_users.guest = false
-
+        # auth_mechanisms.1 = PLAIN
+        # auth_mechanisms.2 = AMQPLAIN
         ## Clustering
         cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
         cluster_formation.k8s.host = kubernetes.default.svc.cluster.local
