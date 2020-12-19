@@ -217,7 +217,7 @@ objects:
       app: ${CLUSTER_NAME}
   spec:
     serviceName: ${CLUSTER_NAME}
-    replicas: 2
+    replicas: 3
     selector:
       matchLabels:
         app: ${CLUSTER_NAME}
@@ -234,7 +234,7 @@ objects:
           - sh
           args:
           - -c
-          - cp -v /etc/rabbitmq/rabbitmq.conf ${RABBITMQ_CONFIG_FILE}.conf; exec docker-entrypoint.sh rabbitmq-server
+          - cp -v /etc/rabbitmq/rabbitmq.conf ${RABBITMQ_CONFIG_FILE}; cp -v /etc/rabbitmq/definitions.json ${RABBITMQ_DEF_FILE}; exec docker-entrypoint.sh rabbitmq-server
           image: ${ISTAG}
           imagePullPolicy: IfNotPresent
           volumeMounts:
@@ -242,6 +242,8 @@ objects:
               mountPath: /etc/rabbitmq
             - name: rabbitmq-storage
               mountPath: /var/lib/rabbitmq
+            - name: rabbitmq-storage
+              mountPath: /var/log/rabbitmq              
 
           ports:
             - name: http
@@ -253,6 +255,13 @@ objects:
             - name: clustering
               protocol: TCP
               containerPort: 25672
+          resources:
+            requests:
+              memory: 500Mi
+              cpu: 500m
+            limits:
+              memory: 6Gi
+              cpu: '4'          
           livenessProbe:
             exec:
               command: ["rabbitmqctl", "status"]
@@ -261,7 +270,7 @@ objects:
           readinessProbe:
             exec:
               command: ["rabbitmqctl", "status"]
-            initialDelaySeconds: 10
+            initialDelaySeconds: 60
             timeoutSeconds: 10
           env:
           - name: RABBITMQ_DEFAULT_USER
@@ -298,7 +307,9 @@ objects:
           - name: RABBITMQ_NODENAME
             value: "rabbit@$(POD_NAME).${CLUSTER_NAME}.$(POD_NAMESPACE).svc.cluster.local"
           - name: RABBITMQ_CONFIG_FILE
-            value: /var/lib/rabbitmq/rabbitmq
+            value: /var/lib/rabbitmq/rabbitmq.conf
+          - name: RABBITMQ_DEF_FILE
+            value: /var/lib/rabbitmq/definitions.json      
         volumes:
         - name: config-volume
           configMap:
@@ -308,6 +319,8 @@ objects:
               path: rabbitmq.conf
             - key: enabled_plugins
               path: enabled_plugins
+            - key: definitions.json
+              path: definitions.json              
     volumeClaimTemplates:
     - metadata:
         name: rabbitmq-storage
