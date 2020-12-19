@@ -86,6 +86,10 @@ objects:
         cluster_partition_handling = autoheal
         ## queue master locator
         queue_master_locator=min-masters
+        # set max memory available to MQ
+        vm_memory_high_watermark.absolute = 6GB
+        ## load definitions file
+        management.load_definitions = /etc/rabbitmq/definitions.json
     enabled_plugins: |
       [rabbitmq_management,rabbitmq_peer_discovery_k8s,rabbitmq_prometheus].
 
