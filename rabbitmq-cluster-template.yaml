@@ -24,6 +24,10 @@ parameters:
   description: "Password securing the RabbitMQ instance"
   generate: expression
   from: "[a-zA-Z0-9]{16}"
+- name: ADMIN_PASS
+  description: "Default admin password"
+- name: USER_PASS
+  description: "Default user password"
 - name: ERLANG_COOKIE
   description: "Cookie used for authentication of cluster nodes"
   generate: expression
@@ -92,6 +96,63 @@ objects:
         management.load_definitions = /etc/rabbitmq/definitions.json
     enabled_plugins: |
       [rabbitmq_management,rabbitmq_peer_discovery_k8s,rabbitmq_prometheus].
+    definitions.json: |
+      {
+      "users": [
+        {
+          "name": "data",
+          "password": "${USER_PASS}",
+          "tags": ""
+        },
+        {
+          "name": "guest",
+          "password": "guest",
+          "tags": ""
+        },
+        {
+          "name": "admin",
+          "password": "${ADMIN_PASS}",
+          "tags": "administrator"
+        }
+      ],
+      "vhosts":[
+          {"name":"/"}
+      ],
+      "policies":[
+          {"vhost":"/","name":"ha","pattern":"", "definition":{"ha-mode":"all","ha-sync-mode":"automatic","ha-sync-batch-size":256}}
+      ],
+      "permissions": [
+        {
+          "user": "guest",
+          "vhost": "/",
+          "configure": ".*",
+          "write": ".*",
+          "read": ".*"
+        },
+        {
+          "user": "data",
+          "vhost": "/",
+          "configure": ".*",
+          "write": ".*",
+          "read": ".*"
+        },
+        {
+          "user": "admin",
+          "vhost": "/",
+          "configure": ".*",
+          "write": ".*",
+          "read": ".*"
+        }
+      ],
+      "queues" : [{
+          "name" : "caller-details-service",
+          "vhost" : "/",
+          "durable" : true,
+          "auto_delete" : false,
+          "arguments" : {}
+        }
+      ]
+      }
 
 # Load balancer
 - kind: Service
