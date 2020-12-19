@@ -38,7 +38,9 @@ parameters:
 - name: VOLUME_SIZE
   description: "Size of the RabbitMQ data volume"
   value: 10Gi
-
+- name: BUILD_NUMBER
+  description: pass build number to force rolling deployment
+  
 objects:
 
 # This service account is needed for rabbit_peer_discovery_k8s plugin to be able to discover
@@ -326,7 +328,9 @@ objects:
           - name: RABBITMQ_CONFIG_FILE
             value: /var/lib/rabbitmq/rabbitmq.conf
           - name: RABBITMQ_DEF_FILE
-            value: /var/lib/rabbitmq/definitions.json      
+            value: /var/lib/rabbitmq/definitions.json  
+          - name: BUILD_NUMBER
+            value: ${BUILD_NUMBER}            
         volumes:
         - name: config-volume
           configMap:
