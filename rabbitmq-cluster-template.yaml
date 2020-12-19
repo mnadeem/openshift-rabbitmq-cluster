@@ -70,6 +70,78 @@ objects:
     name: ${CLUSTER_NAME}-secret
   type: Opaque
 
+# Load balancing route for web ui
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    labels:
+      app: ${CLUSTER_NAME}
+      type: LoadBalancer
+    name: ${CLUSTER_NAME}-http
+  spec:
+    port:
+      targetPort: http
+    to:
+      kind: Service
+      name: ${CLUSTER_NAME}-balancer
+      weight: 100
+    wildcardPolicy: None
+
+# Load balancer
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: ${CLUSTER_NAME}-balancer
+    labels:
+      app: ${CLUSTER_NAME}
+      type: LoadBalancer
+  spec:
+    type: ClusterIP
+    ports:
+     - name: http
+       protocol: TCP
+       port: 15672
+       targetPort: 15672
+     - name: amqp
+       protocol: TCP
+       port: 5672
+       targetPort: 5672
+    selector:
+      app: ${CLUSTER_NAME}
+
+# Headless service that makes it possible to lookup individual rabbitmq nodes
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: ${CLUSTER_NAME}
+    labels:
+      app: ${CLUSTER_NAME}
+  spec:
+    selector:
+      app: ${CLUSTER_NAME}
+    clusterIP: None
+    ports:
+      - name: amqp
+        port: 5672
+        targetPort: 5672
+      - name: clustering
+        port: 25672
+        targetPort: 25672
+
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    name: ${CLUSTER_NAME}-internal-access
+  spec:
+    podSelector:
+      matchLabels:
+        app: ${CLUSTER_NAME}
+    ingress:
+    - from:
+      - podSelector:
+          matchLabels:
+            app: ${CLUSTER_NAME}
+
 - apiVersion: v1
   kind: ConfigMap
   metadata:
@@ -153,61 +225,6 @@ objects:
         }
       ]
       }
-
-# Load balancer
-- kind: Service
-  apiVersion: v1
-  metadata:
-    name: ${CLUSTER_NAME}-balancer
-    labels:
-      app: ${CLUSTER_NAME}
-      type: LoadBalancer
-  spec:
-    type: ClusterIP
-    ports:
-     - name: http
-       protocol: TCP
-       port: 15672
-       targetPort: 15672
-     - name: amqp
-       protocol: TCP
-       port: 5672
-       targetPort: 5672
-    selector:
-      app: ${CLUSTER_NAME}
-
-# Headless service that makes it possible to lookup individual rabbitmq nodes
-- apiVersion: v1
-  kind: Service
-  metadata:
-    name: ${CLUSTER_NAME}
-    labels:
-      app: ${CLUSTER_NAME}
-  spec:
-    selector:
-      app: ${CLUSTER_NAME}
-    clusterIP: None
-    ports:
-      - name: amqp
-        port: 5672
-        targetPort: 5672
-      - name: clustering
-        port: 25672
-        targetPort: 25672
-
-- apiVersion: networking.k8s.io/v1
-  kind: NetworkPolicy
-  metadata:
-    name: ${CLUSTER_NAME}-internal-access
-  spec:
-    podSelector:
-      matchLabels:
-        app: ${CLUSTER_NAME}
-    ingress:
-    - from:
-      - podSelector:
-          matchLabels:
-            app: ${CLUSTER_NAME}
 
 - apiVersion: apps/v1
   kind: StatefulSet
