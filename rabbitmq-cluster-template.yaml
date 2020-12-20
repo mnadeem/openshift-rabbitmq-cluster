@@ -149,6 +149,19 @@ objects:
   metadata:
     name: ${CLUSTER_NAME}-config
   data:
+    populate-conf.sh: |
+        #!/bin/sh
+        set -eu
+
+        cp -v  /rabbitmq-config/rabbitmq.conf ${RABBITMQ_CONFIG_FILE}
+        cp -v ${RABBITMQ_CONFIG_FILE} /etc/rabbitmq/rabbitmq.conf
+
+        cp -v  /rabbitmq-config/definitions.json ${DEF_CONFIG_FILE}
+        sed -i "s|RMQ_ADMIN_PWD|$RMQ_ADMIN_PWD|g" ${DEF_CONFIG_FILE}
+        sed -i "s|RMQ_USR_PWD|$RMQ_USR_PWD|g" ${DEF_CONFIG_FILE}
+        cp -v ${DEF_CONFIG_FILE} /etc/rabbitmq/definitions.json
+
+        cp -vf /rabbitmq-config/enabled_plugins /etc/rabbitmq/enabled_plugins  
     rabbitmq.conf: |
         loopback_users.guest = false
         # auth_mechanisms.1 = PLAIN
@@ -175,7 +188,7 @@ objects:
       "users": [
         {
           "name": "data",
-          "password": "${USER_PASS}",
+          "password": "${RMQ_USR_PWD}",
           "tags": ""
         },
         {
@@ -185,7 +198,7 @@ objects:
         },
         {
           "name": "admin",
-          "password": "${ADMIN_PASS}",
+          "password": "${RMQ_ADMIN_PWD}",
           "tags": "administrator"
         }
       ],
@@ -253,7 +266,7 @@ objects:
           - sh
           args:
           - -c
-          - cp -v /etc/rabbitmq/rabbitmq.conf ${RABBITMQ_CONFIG_FILE}; cp -v /etc/rabbitmq/definitions.json ${RABBITMQ_DEF_FILE}; exec docker-entrypoint.sh rabbitmq-server
+          - /rabbitmq-config/populate-conf.sh ; exec docker-entrypoint.sh rabbitmq-server
           image: ${ISTAG}
           imagePullPolicy: IfNotPresent
           volumeMounts:
@@ -330,18 +343,31 @@ objects:
           - name: RABBITMQ_DEF_FILE
             value: /var/lib/rabbitmq/definitions.json  
           - name: BUILD_NUMBER
-            value: ${BUILD_NUMBER}            
+            value: ${BUILD_NUMBER} 
+          - name: RMQ_USR_PWD
+            valueFrom:
+              secretKeyRef:
+                name: app-secret
+                key:  RMQ_PASS
+          - name: RMQ_ADMIN_PWD
+            valueFrom:
+              secretKeyRef:
+                name: app-secret
+                key:  RMQ_ADMIN_PWD         
         volumes:
         - name: config-volume
           configMap:
             name: ${CLUSTER_NAME}-config
+            defaultMode: 0777
             items:
             - key: rabbitmq.conf
               path: rabbitmq.conf
             - key: enabled_plugins
               path: enabled_plugins
             - key: definitions.json
-              path: definitions.json              
+              path: definitions.json  
+            - key: populate-conf.sh
+              path: populate-conf.sh
     volumeClaimTemplates:
     - metadata:
         name: rabbitmq-storage
